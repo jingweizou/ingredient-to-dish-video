@@ -145,7 +145,9 @@ genBtn.addEventListener('click', async () => {
     const timer = setTimeout(() => controller.abort(), 10 * 60 * 1000);
     const resp = await fetch(GENERATE_ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // Use a simple CORS request (text/plain) to avoid browser preflight
+      // blocking on strict gateways when frontend is hosted on GitHub Pages.
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         ingredients: manualIngredients.length ? manualIngredients : detected,
         dish,

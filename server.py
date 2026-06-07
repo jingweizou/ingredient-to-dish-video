@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from urllib.parse import quote
+import json
 import os
 import sys
 
@@ -48,7 +49,16 @@ def api_generate():
     if request.method == "OPTIONS":
         return ("", 204)
 
-    payload = request.get_json(silent=True) or {}
+    payload = request.get_json(silent=True)
+    if payload is None:
+        raw = (request.get_data(as_text=True) or '').strip()
+        if raw:
+            try:
+                payload = json.loads(raw)
+            except Exception:
+                payload = {}
+        else:
+            payload = {}
     ingredients = payload.get("ingredients", [])
     dish_name = payload.get("dish", "a delicious homemade dish")
     model_tier = payload.get("model", "balanced")
