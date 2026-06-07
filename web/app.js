@@ -128,7 +128,20 @@ genBtn.addEventListener('click', async () => {
     });
     clearTimeout(timer);
 
-    const data = await resp.json();
+    const contentType = resp.headers.get('content-type') || '';
+    let data = null;
+
+    if (contentType.includes('application/json')) {
+      data = await resp.json();
+    } else {
+      const text = await resp.text();
+      const looksLikeHtml = /<\s*html/i.test(text);
+      if (looksLikeHtml) {
+        throw new Error('This is a static demo page. Video generation requires a backend service.');
+      }
+      throw new Error('Server returned a non-JSON response.');
+    }
+
     if (!resp.ok || !data.success) {
       throw new Error(data.error || 'Generation failed');
     }
@@ -150,7 +163,11 @@ genBtn.addEventListener('click', async () => {
     if (e.name === 'AbortError') {
       statusEl.textContent = 'Generation took too long. Please retry with 5s + budget mode.';
     } else {
-      statusEl.textContent = `Generation failed: ${e.message}`;
+      if (String(e.message || '').includes('requires a backend service')) {
+        statusEl.textContent = 'Static demo mode: ingredient detection works, but video generation needs a backend service.';
+      } else {
+        statusEl.textContent = `Generation failed: ${e.message}`;
+      }
     }
   } finally {
     genBtn.disabled = false;
