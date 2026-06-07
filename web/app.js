@@ -174,9 +174,9 @@ genBtn.addEventListener('click', async () => {
       throw new Error(data.error || 'Generation failed');
     }
 
-    const outputPath = data.local_path;
+    const outputPath = data.local_path || '';
     const rel = outputPath.replace(/^output\//, '');
-    const videoUrl = `./output/${rel}`;
+    const videoUrl = data.video_url || `./output/${rel}`;
 
     resultVideo.src = videoUrl;
     resultVideo.style.display = 'block';

@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
+from urllib.parse import quote
 import os
 import sys
 
@@ -18,6 +19,14 @@ MODEL_MAP = {
 app = Flask(__name__, static_folder="web", static_url_path="")
 
 
+@app.after_request
+def add_cors_headers(resp):
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return resp
+
+
 def build_prompt(ingredients, dish_name):
     ing = ", ".join(ingredients[:6]) if ingredients else "fresh ingredients"
     return (
@@ -34,8 +43,11 @@ def health():
     return jsonify({"ok": True})
 
 
-@app.post("/api/generate")
+@app.route("/api/generate", methods=["POST", "OPTIONS"])
 def api_generate():
+    if request.method == "OPTIONS":
+        return ("", 204)
+
     payload = request.get_json(silent=True) or {}
     ingredients = payload.get("ingredients", [])
     dish_name = payload.get("dish", "a delicious homemade dish")
@@ -49,12 +61,17 @@ def api_generate():
     if not result.get("success"):
         return jsonify({"success": False, "error": result.get("error", "generation failed")}), 500
 
+    local_path = result.get("local_path")
+    rel = (local_path or "").replace("output/", "", 1)
+    video_url = f"{request.host_url.rstrip('/')}/output/{quote(rel)}" if rel else None
+
     return jsonify(
         {
             "success": True,
             "dish": dish_name,
             "prompt": prompt,
-            "local_path": result.get("local_path"),
+            "local_path": local_path,
+            "video_url": video_url,
             "cost": result.get("cost", 0),
             "file_size_mb": result.get("file_size_mb", 0),
         }
