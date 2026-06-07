@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ingredient → Dish Video</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+</head>
+<body>
+  <main class="container">
+    <h1>📸 Ingredient to Dish Video</h1>
+    <p class="sub">Take a photo of your ingredients, we suggest a dish, then generate a cooking video.</p>
+
+    <section class="card">
+      <label class="label">1) 📷 Take ingredient photo</label>
+      <div class="camera-wrap">
+        <label for="fileInput" class="camera-btn">📸 Take Photo</label>
+        <input id="fileInput" type="file" accept="image/*" capture="environment" />
+        <p class="camera-hint">Point at your ingredients and snap a clear photo</p>
+      </div>
+      <img id="preview" class="preview" alt="ingredient preview" />
+    </section>
+
+    <section class="card">
+      <label class="label">2) Detect ingredients</label>
+      <button id="detectBtn">Detect from photo</button>
+      <div id="labels" class="chips"></div>
+      <div class="dish-wrap">
+        <label>Ingredients (auto-detected or enter manually, comma separated)</label>
+        <input id="ingredientsInput" type="text" placeholder="e.g. tomato, egg, scallion" />
+      </div>
+      <div class="dish-wrap">
+        <label>Suggested dish</label>
+        <input id="dishInput" type="text" placeholder="e.g. Tomato Egg Stir-fry" />
+      </div>
+    </section>
+
+    <section class="card">
+      <label class="label">3) Generate dish video</label>
+      <div class="row">
+        <select id="modelSelect">
+          <option value="budget">Budget</option>
+          <option value="balanced" selected>Balanced</option>
+          <option value="premium">Premium</option>
+        </select>
+        <select id="durationSelect">
+          <option value="5" selected>5s</option>
+          <option value="8">8s</option>
+        </select>
+        <button id="genBtn">Generate Video</button>
+      </div>
+      <p id="status" class="status"></p>
+      <video id="resultVideo" controls playsinline></video>
+      <a id="downloadLink" target="_blank"></a>
+    </section>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+:root {
+  --bg: #fff8f4;
+  --card: #ffffff;
+  --text: #2a1f1a;
+  --muted: #7f6b61;
+  --accent: #e6533c;
+  --accent-2: #4f9d69;
+  --border: #f0ddd3;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: linear-gradient(180deg, #fff8f4 0%, #fff1ea 100%);
+  color: var(--text);
+}
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 20px 14px 36px;
+}
+h1 { margin: 4px 0 8px; font-size: 28px; }
+.sub { margin: 0 0 16px; color: var(--muted); }
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 8px 24px rgba(226, 147, 121, 0.12);
+}
+.label { display: block; font-weight: 700; margin-bottom: 10px; }
+.camera-wrap { text-align: center; }
+.camera-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  padding: 20px 40px;
+  border-radius: 14px;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(230, 83, 60, 0.35);
+}
+.camera-btn:hover { background: #c9442c; }
+.camera-hint {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+input[type="file"]#fileInput { display: none; }
+.preview {
+  display: none;
+  width: 100%;
+  max-height: 280px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+button, select, input[type="text"], input[type="file"] {
+  font-size: 16px;
+}
+button {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+button:disabled { opacity: 0.55; }
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.2fr;
+  gap: 8px;
+}
+select, input[type="text"] {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.chips span {
+  background: #fff1ea;
+  color: #8d3e30;
+  border: 1px solid #f0c8bb;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.dish-wrap {
+  margin-top: 12px;
+}
+.dish-wrap label { display: block; margin-bottom: 6px; color: var(--muted); }
+.status { color: #8a5d4e; margin: 10px 0; min-height: 20px; }
+video {
+  display: none;
+  width: 100%;
+  border-radius: 12px;
+  background: #000;
+}
+#downloadLink {
+  display: none;
+  margin-top: 10px;
+  color: var(--accent-2);
+  font-weight: 700;
+  text-decoration: none;
+}
