@@ -172,23 +172,52 @@ genBtn.addEventListener('click', async () => {
       throw new Error('Server returned a non-JSON response.');
     }
 
-    if (!resp.ok || !data.success) {
+    if (!resp.ok || !data.success || !data.job_id) {
       throw new Error(data.error || 'Generation failed');
     }
 
-    const outputPath = data.local_path || '';
+    const pollUrl = `${GENERATE_ENDPOINT}/${encodeURIComponent(data.job_id)}`;
+    let finalData = null;
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < 10 * 60 * 1000) {
+      statusEl.textContent = 'Generating video... still working (usually 1-3 minutes).';
+      await new Promise(r => setTimeout(r, 4000));
+
+      const pollResp = await fetch(pollUrl, { method: 'GET' });
+      const pollJson = await pollResp.json().catch(() => null);
+
+      if (!pollResp.ok) {
+        throw new Error((pollJson && pollJson.error) || 'Generation failed');
+      }
+
+      if (pollJson && pollJson.status === 'done') {
+        finalData = pollJson;
+        break;
+      }
+
+      if (pollJson && pollJson.status === 'failed') {
+        throw new Error(pollJson.error || 'Generation failed');
+      }
+    }
+
+    if (!finalData) {
+      throw new Error('Generation timed out. Please retry with 5s + budget mode.');
+    }
+
+    const outputPath = finalData.local_path || '';
     const rel = outputPath.replace(/^output\//, '');
-    const videoUrl = data.video_url || `./output/${rel}`;
+    const videoUrl = finalData.video_url || `./output/${rel}`;
 
     resultVideo.src = videoUrl;
     resultVideo.style.display = 'block';
     resultVideo.play().catch(() => {});
 
     downloadLink.href = videoUrl;
-    downloadLink.textContent = `Download video (${(data.file_size_mb || 0).toFixed(2)} MB)`;
+    downloadLink.textContent = `Download video (${(finalData.file_size_mb || 0).toFixed(2)} MB)`;
     downloadLink.style.display = 'inline-block';
 
-    statusEl.textContent = `Done. Estimated cost: $${Number(data.cost || 0).toFixed(2)}`;
+    statusEl.textContent = `Done. Estimated cost: $${Number(finalData.cost || 0).toFixed(2)}`;
   } catch (e) {
     if (e.name === 'AbortError') {
       statusEl.textContent = 'Generation took too long. Please retry with 5s + budget mode.';
