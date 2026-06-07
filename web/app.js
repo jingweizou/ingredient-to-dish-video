@@ -73,8 +73,14 @@ async function loadModel() {
   if (model) return model;
   statusEl.textContent = 'Loading AI detector...';
 
+  if (window.__mlReady && typeof window.__mlReady.then === 'function') {
+    try {
+      await window.__mlReady;
+    } catch (_) {}
+  }
+
   if (!window.mobilenet || !window.tf) {
-    throw new Error('AI detector library failed to load');
+    throw new Error('AI detector libraries blocked by network');
   }
 
   try {
@@ -191,8 +197,8 @@ detectBtn.addEventListener('click', async () => {
     statusEl.textContent = 'Detection done. You can edit ingredients/dish, then generate static plan.';
   } catch (e) {
     const msg = String(e?.message || e);
-    if (/library failed/i.test(msg) || /mobilenet/i.test(msg) || /tf/i.test(msg)) {
-      statusEl.textContent = 'Detection unavailable on this network/browser. Please type ingredients manually.';
+    if (/blocked by network/i.test(msg) || /library failed/i.test(msg) || /mobilenet/i.test(msg) || /tf/i.test(msg)) {
+      statusEl.textContent = 'Detector CDN is blocked on this network. Please type ingredients manually (or switch network/VPN and retry).';
     } else if (/timeout/i.test(msg)) {
       statusEl.textContent = 'Detection timed out. Retry once, or type ingredients manually.';
     } else {

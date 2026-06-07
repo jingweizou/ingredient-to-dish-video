@@ -5,8 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ingredient → Dish Video</title>
   <link rel="stylesheet" href="./styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js"></script>
+  <script>
+    async function loadScriptWithFallback(urls) {
+      for (const url of urls) {
+        try {
+          await new Promise((resolve, reject) => {
+            const s = document.createElement('script');
+            s.src = url;
+            s.async = true;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error(`failed: ${url}`));
+            document.head.appendChild(s);
+          });
+          return url;
+        } catch (_) {}
+      }
+      throw new Error('all script sources failed');
+    }
+
+    window.__mlReady = (async () => {
+      await loadScriptWithFallback([
+        'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js',
+        'https://unpkg.com/@tensorflow/tfjs@4.20.0/dist/tf.min.js'
+      ]);
+      await loadScriptWithFallback([
+        'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js',
+        'https://unpkg.com/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js'
+      ]);
+      return true;
+    })();
+  </script>
 </head>
 <body>
   <main class="container">
@@ -70,6 +98,6 @@
     </section>
   </main>
 
-  <script src="./app.js?v=20260607-static1"></script>
+  <script src="./app.js?v=20260607-detectfix1"></script>
 </body>
 </html>
