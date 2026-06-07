@@ -10,8 +10,8 @@
 </head>
 <body>
   <main class="container">
-    <h1>📸 Ingredient to Dish Video</h1>
-    <p class="sub">Take a photo of your ingredients, we suggest a dish, then generate a cooking video.</p>
+    <h1>📸 Ingredient to Dish Planner</h1>
+    <p class="sub">Take a photo of your ingredients, we suggest a dish, then output storyboard + image prompts + cooking steps (100% static, zero API cost).</p>
 
     <section class="card">
       <label class="label">1) 📷 Take ingredient photo</label>
@@ -38,25 +38,38 @@
     </section>
 
     <section class="card">
-      <label class="label">3) Generate dish video</label>
+      <label class="label">3) Generate static cooking plan</label>
       <div class="row">
-        <select id="modelSelect">
-          <option value="budget">Budget</option>
-          <option value="balanced" selected>Balanced</option>
-          <option value="premium">Premium</option>
+        <select id="styleSelect">
+          <option value="home" selected>Home Style</option>
+          <option value="quick">Quick Meal</option>
+          <option value="restaurant">Restaurant Style</option>
         </select>
-        <select id="durationSelect">
-          <option value="5" selected>5s</option>
-          <option value="8">8s</option>
+        <select id="paceSelect">
+          <option value="5" selected>5 scenes</option>
+          <option value="8">8 scenes</option>
         </select>
-        <button id="genBtn">Generate Video</button>
+        <button id="genBtn">Generate Plan</button>
       </div>
       <p id="status" class="status"></p>
-      <video id="resultVideo" controls playsinline></video>
-      <a id="downloadLink" target="_blank"></a>
+
+      <div class="dish-wrap">
+        <label>Storyboard (scene-by-scene)</label>
+        <textarea id="storyboardOutput" rows="8" placeholder="Storyboard will appear here..."></textarea>
+      </div>
+
+      <div class="dish-wrap">
+        <label>Image prompts (for each scene)</label>
+        <textarea id="imagePromptOutput" rows="8" placeholder="Image prompts will appear here..."></textarea>
+      </div>
+
+      <div class="dish-wrap">
+        <label>Actionable cooking steps</label>
+        <textarea id="stepsOutput" rows="8" placeholder="Cooking steps will appear here..."></textarea>
+      </div>
     </section>
   </main>
 
-  <script src="./app.js?v=20260607-private1"></script>
+  <script src="./app.js?v=20260607-static1"></script>
 </body>
 </html>

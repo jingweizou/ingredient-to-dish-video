@@ -57,7 +57,7 @@ input[type="file"]#fileInput { display: none; }
   border-radius: 12px;
   margin-top: 10px;
 }
-button, select, input[type="text"], input[type="file"] {
+button, select, input[type="text"], input[type="file"], textarea {
   font-size: 16px;
 }
 button {
@@ -74,12 +74,18 @@ button:disabled { opacity: 0.55; }
   grid-template-columns: 1fr 1fr 1.2fr;
   gap: 8px;
 }
-select, input[type="text"] {
+select, input[type="text"], textarea {
   width: 100%;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 10px;
   background: #fff;
+}
+textarea {
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.45;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 .chips {
   display: flex;

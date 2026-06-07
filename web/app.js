@@ -6,23 +6,15 @@ const ingredientsInput = document.getElementById('ingredientsInput');
 const dishInput = document.getElementById('dishInput');
 const genBtn = document.getElementById('genBtn');
 const statusEl = document.getElementById('status');
-const modelSelect = document.getElementById('modelSelect');
-const durationSelect = document.getElementById('durationSelect');
-const resultVideo = document.getElementById('resultVideo');
-const downloadLink = document.getElementById('downloadLink');
+
+const styleSelect = document.getElementById('styleSelect');
+const paceSelect = document.getElementById('paceSelect');
+const storyboardOutput = document.getElementById('storyboardOutput');
+const imagePromptOutput = document.getElementById('imagePromptOutput');
+const stepsOutput = document.getElementById('stepsOutput');
 
 let model = null;
 let detected = [];
-
-const API_BASE = (window.INGREDIENT_API_BASE || '').replace(/\/$/, '');
-const GENERATE_ENDPOINT = API_BASE ? `${API_BASE}/api/generate` : './api/generate';
-
-function withTimeout(promise, ms, label) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timeout`)), ms)),
-  ]);
-}
 
 const dishMap = {
   tomato: 'Tomato Egg Stir-fry',
@@ -36,35 +28,33 @@ const dishMap = {
   mushroom: 'Creamy Mushroom Pasta',
   noodle: 'Vegetable Noodle Stir-fry',
   rice: 'Egg Fried Rice',
+  pepper: 'Bell Pepper Beef',
+  onion: 'Onion Egg Stir-fry',
 };
 
-fileInput.addEventListener('change', () => {
-  const file = fileInput.files?.[0];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
-  preview.src = url;
-  preview.style.display = 'block';
-  labelsBox.innerHTML = '';
-  statusEl.textContent = '';
-  resultVideo.style.display = 'none';
-  downloadLink.style.display = 'none';
-});
+const styleGuide = {
+  home: {
+    tone: 'warm family kitchen, natural light, practical home-cooking rhythm',
+    plating: 'simple clean plate, cozy home table',
+    verbs: ['wash', 'slice', 'stir-fry', 'season', 'plate'],
+  },
+  quick: {
+    tone: 'fast weekday meal, efficient prep, minimal tools',
+    plating: 'single-bowl serving, quick garnish',
+    verbs: ['prep', 'quick-cut', 'flash-fry', 'finish', 'serve'],
+  },
+  restaurant: {
+    tone: 'cinematic kitchen pass, controlled heat, polished presentation',
+    plating: 'refined plating with final drizzle and texture contrast',
+    verbs: ['mise-en-place', 'precision-cut', 'high-heat sear', 'layer seasoning', 'final plate'],
+  },
+};
 
-async function loadModel() {
-  if (model) return model;
-  statusEl.textContent = 'Loading AI detector...';
-
-  if (!window.mobilenet || !window.tf) {
-    throw new Error('AI detector library failed to load');
-  }
-
-  // Warm up tf backend to reduce first classify failure on some mobile browsers
-  try {
-    await tf.ready();
-  } catch (_) {}
-
-  model = await mobilenet.load({ version: 2, alpha: 1.0 });
-  return model;
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`${label} timeout`)), ms)),
+  ]);
 }
 
 function normalizeLabel(name) {
@@ -79,22 +69,105 @@ function suggestDish(labels) {
   return 'Home Style Mixed Ingredient Stir-fry';
 }
 
+async function loadModel() {
+  if (model) return model;
+  statusEl.textContent = 'Loading AI detector...';
+
+  if (!window.mobilenet || !window.tf) {
+    throw new Error('AI detector library failed to load');
+  }
+
+  try {
+    await tf.ready();
+  } catch (_) {}
+
+  model = await mobilenet.load({ version: 2, alpha: 1.0 });
+  return model;
+}
+
+function ensureImageReady(img) {
+  if (img.complete) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('Image failed to load'));
+  });
+}
+
+function sceneLine(i, total, dish, ingredients, style) {
+  const ingredientLead = ingredients[i % ingredients.length] || 'main ingredients';
+  const verb = style.verbs[i % style.verbs.length] || 'cook';
+
+  if (i === 0) return `${i + 1}. Ingredient hero shot: show ${ingredients.join(', ')} neatly arranged for ${dish}.`;
+  if (i === total - 1) return `${i + 1}. Final beauty shot: ${dish} plated (${style.plating}), steam visible, ready to serve.`;
+  return `${i + 1}. ${verb} scene: focus on ${ingredientLead}, clear hand movement, close-up texture change.`;
+}
+
+function promptLine(i, dish, ingredients, style) {
+  const lead = ingredients[i % ingredients.length] || 'fresh ingredients';
+  return `${i + 1}) ${dish}, ${lead}, ${style.tone}, food photography, realistic texture, 4k, clean composition`;
+}
+
+function stepLine(i, total, dish, ingredients) {
+  if (i === 0) return `${i + 1}. Prep all ingredients (${ingredients.join(', ')}), wash and pat dry.`;
+  if (i === total - 1) return `${i + 1}. Taste-adjust seasoning, plate ${dish}, serve while hot.`;
+  return `${i + 1}. Continue cooking step ${i}: control heat, stir evenly, avoid overcooking.`;
+}
+
+function generateStaticPlan() {
+  const dish = dishInput.value.trim() || 'Home Style Mixed Ingredient Stir-fry';
+  const typedIngredients = ingredientsInput.value
+    .split(',')
+    .map(x => x.trim())
+    .filter(Boolean);
+
+  const ingredients = typedIngredients.length ? typedIngredients : (detected.length ? detected : ['tomato', 'egg']);
+  const style = styleGuide[styleSelect.value] || styleGuide.home;
+  const sceneCount = Number(paceSelect.value) || 5;
+
+  const storyboard = [];
+  const prompts = [];
+  const steps = [];
+
+  for (let i = 0; i < sceneCount; i += 1) {
+    storyboard.push(sceneLine(i, sceneCount, dish, ingredients, style));
+    prompts.push(promptLine(i, dish, ingredients, style));
+    steps.push(stepLine(i, sceneCount, dish, ingredients));
+  }
+
+  storyboardOutput.value = storyboard.join('\n');
+  imagePromptOutput.value = prompts.join('\n');
+  stepsOutput.value = steps.join('\n');
+
+  statusEl.textContent = 'Plan generated. 100% static mode — no paid API calls.';
+}
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files?.[0];
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+  preview.src = url;
+  preview.style.display = 'block';
+
+  labelsBox.innerHTML = '';
+  statusEl.textContent = '';
+  storyboardOutput.value = '';
+  imagePromptOutput.value = '';
+  stepsOutput.value = '';
+});
+
 detectBtn.addEventListener('click', async () => {
   if (!preview.src) {
     statusEl.textContent = 'Please take/upload a photo first.';
     return;
   }
+
   detectBtn.disabled = true;
   try {
     await loadModel();
     statusEl.textContent = 'Detecting ingredients from image...';
 
-    if (!preview.complete) {
-      await new Promise((resolve, reject) => {
-        preview.onload = () => resolve();
-        preview.onerror = () => reject(new Error('Image failed to load'));
-      });
-    }
+    await ensureImageReady(preview);
     await preview.decode().catch(() => {});
 
     const predictions = await withTimeout(model.classify(preview, 6), 25000, 'Detect');
@@ -114,120 +187,26 @@ detectBtn.addEventListener('click', async () => {
     if (!dishInput.value) {
       dishInput.value = suggestDish(detected);
     }
-    statusEl.textContent = 'Detection done. You can edit ingredients/dish then generate video.';
+
+    statusEl.textContent = 'Detection done. You can edit ingredients/dish, then generate static plan.';
   } catch (e) {
-    const msg = String(e && e.message ? e.message : e);
+    const msg = String(e?.message || e);
     if (/library failed/i.test(msg) || /mobilenet/i.test(msg) || /tf/i.test(msg)) {
-      statusEl.textContent = 'Detection unavailable on this network/browser right now. Please type ingredients manually below.';
+      statusEl.textContent = 'Detection unavailable on this network/browser. Please type ingredients manually.';
     } else if (/timeout/i.test(msg)) {
-      statusEl.textContent = 'Detection timed out. Please retry once or type ingredients manually below.';
+      statusEl.textContent = 'Detection timed out. Retry once, or type ingredients manually.';
     } else {
-      statusEl.textContent = `Detection failed (${msg}). You can still type ingredients manually below.`;
+      statusEl.textContent = `Detection failed (${msg}). You can still type ingredients manually.`;
     }
   } finally {
     detectBtn.disabled = false;
   }
 });
 
-genBtn.addEventListener('click', async () => {
-  const dish = dishInput.value.trim() || 'a delicious homemade dish';
-  const manualIngredients = ingredientsInput.value
-    .split(',')
-    .map(x => x.trim())
-    .filter(Boolean);
+genBtn.addEventListener('click', () => {
   genBtn.disabled = true;
-  statusEl.textContent = 'Generating video... this may take 1-3 minutes.';
-  resultVideo.style.display = 'none';
-  downloadLink.style.display = 'none';
-
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10 * 60 * 1000);
-    const resp = await fetch(GENERATE_ENDPOINT, {
-      method: 'POST',
-      // Use a simple CORS request (text/plain) to avoid browser preflight
-      // blocking on strict gateways when frontend is hosted on GitHub Pages.
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        ingredients: manualIngredients.length ? manualIngredients : detected,
-        dish,
-        model: modelSelect.value,
-        duration: Number(durationSelect.value),
-      }),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-
-    const contentType = resp.headers.get('content-type') || '';
-    let data = null;
-
-    if (contentType.includes('application/json')) {
-      data = await resp.json();
-    } else {
-      const text = await resp.text();
-      const looksLikeHtml = /<\s*html/i.test(text);
-      if (looksLikeHtml) {
-        throw new Error('This is a static demo page. Video generation requires a backend service.');
-      }
-      throw new Error('Server returned a non-JSON response.');
-    }
-
-    if (!resp.ok || !data.success || !data.job_id) {
-      throw new Error(data.error || 'Generation failed');
-    }
-
-    const pollUrl = `${GENERATE_ENDPOINT}/${encodeURIComponent(data.job_id)}`;
-    let finalData = null;
-    const startedAt = Date.now();
-
-    while (Date.now() - startedAt < 10 * 60 * 1000) {
-      statusEl.textContent = 'Generating video... still working (usually 1-3 minutes).';
-      await new Promise(r => setTimeout(r, 4000));
-
-      const pollResp = await fetch(pollUrl, { method: 'GET' });
-      const pollJson = await pollResp.json().catch(() => null);
-
-      if (!pollResp.ok) {
-        throw new Error((pollJson && pollJson.error) || 'Generation failed');
-      }
-
-      if (pollJson && pollJson.status === 'done') {
-        finalData = pollJson;
-        break;
-      }
-
-      if (pollJson && pollJson.status === 'failed') {
-        throw new Error(pollJson.error || 'Generation failed');
-      }
-    }
-
-    if (!finalData) {
-      throw new Error('Generation timed out. Please retry with 5s + budget mode.');
-    }
-
-    const outputPath = finalData.local_path || '';
-    const rel = outputPath.replace(/^output\//, '');
-    const videoUrl = finalData.video_url || `./output/${rel}`;
-
-    resultVideo.src = videoUrl;
-    resultVideo.style.display = 'block';
-    resultVideo.play().catch(() => {});
-
-    downloadLink.href = videoUrl;
-    downloadLink.textContent = `Download video (${(finalData.file_size_mb || 0).toFixed(2)} MB)`;
-    downloadLink.style.display = 'inline-block';
-
-    statusEl.textContent = `Done. Estimated cost: $${Number(finalData.cost || 0).toFixed(2)}`;
-  } catch (e) {
-    if (e.name === 'AbortError') {
-      statusEl.textContent = 'Generation took too long. Please retry with 5s + budget mode.';
-    } else {
-      if (String(e.message || '').includes('requires a backend service')) {
-        statusEl.textContent = 'Static demo mode: ingredient detection works, but video generation needs a backend service.';
-      } else {
-        statusEl.textContent = `Generation failed: ${e.message}`;
-      }
-    }
+    generateStaticPlan();
   } finally {
     genBtn.disabled = false;
   }
