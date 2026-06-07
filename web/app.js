@@ -14,6 +14,9 @@ const downloadLink = document.getElementById('downloadLink');
 let model = null;
 let detected = [];
 
+const API_BASE = (window.INGREDIENT_API_BASE || '').replace(/\/$/, '');
+const GENERATE_ENDPOINT = API_BASE ? `${API_BASE}/api/generate` : './api/generate';
+
 function withTimeout(promise, ms, label) {
   return Promise.race([
     promise,
@@ -50,7 +53,17 @@ fileInput.addEventListener('change', () => {
 async function loadModel() {
   if (model) return model;
   statusEl.textContent = 'Loading AI detector...';
-  model = await mobilenet.load();
+
+  if (!window.mobilenet || !window.tf) {
+    throw new Error('AI detector library failed to load');
+  }
+
+  // Warm up tf backend to reduce first classify failure on some mobile browsers
+  try {
+    await tf.ready();
+  } catch (_) {}
+
+  model = await mobilenet.load({ version: 2, alpha: 1.0 });
   return model;
 }
 
@@ -75,8 +88,16 @@ detectBtn.addEventListener('click', async () => {
   try {
     await loadModel();
     statusEl.textContent = 'Detecting ingredients from image...';
+
+    if (!preview.complete) {
+      await new Promise((resolve, reject) => {
+        preview.onload = () => resolve();
+        preview.onerror = () => reject(new Error('Image failed to load'));
+      });
+    }
     await preview.decode().catch(() => {});
-    const predictions = await withTimeout(model.classify(preview, 6), 20000, 'Detect');
+
+    const predictions = await withTimeout(model.classify(preview, 6), 25000, 'Detect');
     detected = predictions
       .map(p => normalizeLabel(p.className).split(',')[0].trim())
       .filter(Boolean)
@@ -95,7 +116,14 @@ detectBtn.addEventListener('click', async () => {
     }
     statusEl.textContent = 'Detection done. You can edit ingredients/dish then generate video.';
   } catch (e) {
-    statusEl.textContent = `Detection failed (${e.message}). You can still type ingredients manually below.`;
+    const msg = String(e && e.message ? e.message : e);
+    if (/library failed/i.test(msg) || /mobilenet/i.test(msg) || /tf/i.test(msg)) {
+      statusEl.textContent = 'Detection unavailable on this network/browser right now. Please type ingredients manually below.';
+    } else if (/timeout/i.test(msg)) {
+      statusEl.textContent = 'Detection timed out. Please retry once or type ingredients manually below.';
+    } else {
+      statusEl.textContent = `Detection failed (${msg}). You can still type ingredients manually below.`;
+    }
   } finally {
     detectBtn.disabled = false;
   }
@@ -115,7 +143,7 @@ genBtn.addEventListener('click', async () => {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10 * 60 * 1000);
-    const resp = await fetch('./api/generate', {
+    const resp = await fetch(GENERATE_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
