@@ -68,7 +68,7 @@ button {
   border-radius: 10px;
   font-weight: 700;
 }
-button:disabled { opacity: 0.55; }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr 1.2fr;

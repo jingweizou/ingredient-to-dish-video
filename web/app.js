@@ -19,6 +19,7 @@ const copyStepsBtn = document.getElementById('copyStepsBtn');
 
 let model = null;
 let detected = [];
+let isDetecting = false;
 
 const dishMap = {
   tomato: 'Tomato Egg Stir-fry',
@@ -34,6 +35,39 @@ const dishMap = {
   rice: 'Egg Fried Rice',
   pepper: 'Bell Pepper Beef',
   onion: 'Onion Egg Stir-fry',
+};
+
+const ingredientAlias = {
+  zucchini: 'zucchini',
+  cucumber: 'cucumber',
+  aubergine: 'eggplant',
+  eggplant: 'eggplant',
+  courgette: 'zucchini',
+  bellpepper: 'bell pepper',
+  capsicum: 'bell pepper',
+  chili: 'chili',
+  chilli: 'chili',
+  scallion: 'scallion',
+  springonion: 'scallion',
+  greenonion: 'scallion',
+  garlic: 'garlic',
+  ginger: 'ginger',
+  carrot: 'carrot',
+  cabbage: 'cabbage',
+  cauliflower: 'cauliflower',
+  broccoli: 'broccoli',
+  spinach: 'spinach',
+  lettuce: 'lettuce',
+  mushroom: 'mushroom',
+  tomato: 'tomato',
+  potato: 'potato',
+  onion: 'onion',
+  egg: 'egg',
+  chicken: 'chicken',
+  beef: 'beef',
+  pork: 'pork',
+  shrimp: 'shrimp',
+  fish: 'fish',
 };
 
 const styleGuide = {
@@ -63,6 +97,23 @@ function withTimeout(promise, ms, label) {
 
 function normalizeLabel(name) {
   return name.toLowerCase().replace(/[^a-z ]/g, '');
+}
+
+function mapLabelToIngredient(rawClassName) {
+  const norm = normalizeLabel(rawClassName || '');
+  if (!norm) return '';
+
+  const parts = norm.split(',').map(x => x.trim()).filter(Boolean);
+  const primary = (parts[0] || norm).replace(/\s+/g, ' ').trim();
+
+  const compact = primary.replace(/\s+/g, '');
+  if (ingredientAlias[compact]) return ingredientAlias[compact];
+
+  for (const key of Object.keys(ingredientAlias)) {
+    if (compact.includes(key)) return ingredientAlias[key];
+  }
+
+  return primary;
 }
 
 function suggestDish(labels) {
@@ -210,38 +261,49 @@ fileInput.addEventListener('change', () => {
 
   labelsBox.innerHTML = '';
   if (detectMeta) detectMeta.textContent = '';
-  statusEl.textContent = '';
+  statusEl.textContent = 'Photo loaded. Auto-detecting ingredients...';
   storyboardOutput.value = '';
   imagePromptOutput.value = '';
   stepsOutput.value = '';
+
+  // Auto trigger — user should not need extra clicks.
+  setTimeout(() => {
+    runDetection('auto');
+  }, 120);
 });
 
-detectBtn.addEventListener('click', async () => {
+async function runDetection(source = 'manual') {
   if (!preview.src) {
     statusEl.textContent = 'Please take/upload a photo first.';
     return;
   }
+  if (isDetecting) return;
 
+  isDetecting = true;
   detectBtn.disabled = true;
-  detectBtn.textContent = 'Detecting...';
+  detectBtn.textContent = source === 'auto' ? 'Auto detecting...' : 'Detecting...';
+
   try {
     await loadModel();
-    statusEl.textContent = 'Detecting ingredients from image...';
+    statusEl.textContent = source === 'auto'
+      ? 'Auto-detecting ingredients from photo...'
+      : 'Detecting ingredients from image...';
 
     await ensureImageReady(preview);
     await withTimeout(preview.decode().catch(() => {}), 5000, 'Decode');
 
     const classifyInput = buildClassifyInput(preview);
-    const predictions = await withTimeout(model.classify(classifyInput, 6), 15000, 'Detect');
+    const predictions = await withTimeout(model.classify(classifyInput, 10), 16000, 'Detect');
+
     const ranked = uniqueByLabel(
       predictions.map(p => ({
-        label: normalizeLabel(p.className).split(',')[0].trim(),
+        label: mapLabelToIngredient(p.className),
         prob: Number(p.probability || 0),
       }))
     )
       .filter(p => p.label)
       .sort((a, b) => b.prob - a.prob)
-      .slice(0, 5);
+      .slice(0, 8);
 
     detected = ranked.map(x => x.label);
 
@@ -254,29 +316,41 @@ detectBtn.addEventListener('click', async () => {
 
     if (detectMeta) {
       detectMeta.textContent = ranked.length
-        ? `Detected ${ranked.length} items, ranked by confidence.`
-        : 'No clear ingredients detected. Please enter ingredients manually.';
+        ? `Detected ${ranked.length} items automatically (ranked by confidence).`
+        : 'Could not confidently identify ingredients. You can tap Detect again or type manually.';
     }
 
-    ingredientsInput.value = detected.join(', ');
-    if (!dishInput.value) {
-      dishInput.value = suggestDish(detected);
+    if (ranked.length) {
+      ingredientsInput.value = detected.join(', ');
+      if (!dishInput.value) {
+        dishInput.value = suggestDish(detected);
+      }
+      statusEl.textContent = source === 'auto'
+        ? 'Auto-detection complete. You can directly generate the plan.'
+        : 'Detection done. You can edit ingredients/dish, then generate static plan.';
+    } else {
+      statusEl.textContent = 'Could not detect clearly. Try a closer/brighter photo, or tap Detect again.';
     }
-
-    statusEl.textContent = 'Detection done. You can edit ingredients/dish, then generate static plan.';
   } catch (e) {
     const msg = String(e?.message || e);
     if (/blocked by network/i.test(msg) || /library failed/i.test(msg) || /mobilenet/i.test(msg) || /tf/i.test(msg)) {
-      statusEl.textContent = 'Detector CDN is blocked on this network. Please type ingredients manually (or switch network/VPN and retry).';
+      statusEl.textContent = 'Detector library was blocked by your network. Please switch network and retry auto-detect.';
     } else if (/timeout/i.test(msg)) {
-      statusEl.textContent = 'Detection timed out. Retry once, or type ingredients manually.';
+      statusEl.textContent = source === 'auto'
+        ? 'Auto-detect timed out. Tap Detect again once, or retake a clearer photo.'
+        : 'Detection timed out. Retry once, or retake a clearer photo.';
     } else {
-      statusEl.textContent = `Detection failed (${msg}). You can still type ingredients manually.`;
+      statusEl.textContent = `Detection failed (${msg}). Please retake photo and retry.`;
     }
   } finally {
+    isDetecting = false;
     detectBtn.disabled = false;
-    detectBtn.textContent = 'Detect from photo';
+    detectBtn.textContent = 'Detect again';
   }
+}
+
+detectBtn.addEventListener('click', async () => {
+  runDetection('manual');
 });
 
 genBtn.addEventListener('click', () => {
