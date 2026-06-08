@@ -128,9 +128,28 @@ async function loadModel() {
 function ensureImageReady(img) {
   if (img.complete) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    img.onload = () => resolve();
-    img.onerror = () => reject(new Error('Image failed to load'));
+    const t = setTimeout(() => reject(new Error('Image load timeout')), 8000);
+    img.onload = () => { clearTimeout(t); resolve(); };
+    img.onerror = () => { clearTimeout(t); reject(new Error('Image failed to load')); };
   });
+}
+
+function buildClassifyInput(img) {
+  const maxSide = 640;
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) return img;
+
+  const scale = Math.min(1, maxSide / Math.max(w, h));
+  const tw = Math.max(1, Math.round(w * scale));
+  const th = Math.max(1, Math.round(h * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = tw;
+  canvas.height = th;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, tw, th);
+  return canvas;
 }
 
 function sceneLine(i, total, dish, ingredients, style) {
@@ -204,14 +223,16 @@ detectBtn.addEventListener('click', async () => {
   }
 
   detectBtn.disabled = true;
+  detectBtn.textContent = 'Detecting...';
   try {
     await loadModel();
     statusEl.textContent = 'Detecting ingredients from image...';
 
     await ensureImageReady(preview);
-    await preview.decode().catch(() => {});
+    await withTimeout(preview.decode().catch(() => {}), 5000, 'Decode');
 
-    const predictions = await withTimeout(model.classify(preview, 6), 25000, 'Detect');
+    const classifyInput = buildClassifyInput(preview);
+    const predictions = await withTimeout(model.classify(classifyInput, 6), 15000, 'Detect');
     const ranked = uniqueByLabel(
       predictions.map(p => ({
         label: normalizeLabel(p.className).split(',')[0].trim(),
@@ -254,6 +275,7 @@ detectBtn.addEventListener('click', async () => {
     }
   } finally {
     detectBtn.disabled = false;
+    detectBtn.textContent = 'Detect from photo';
   }
 });
 
