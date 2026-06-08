@@ -55,6 +55,7 @@
       <label class="label">2) Detect ingredients</label>
       <button id="detectBtn">Detect from photo</button>
       <div id="labels" class="chips"></div>
+      <p id="detectMeta" class="meta"></p>
       <div class="dish-wrap">
         <label>Ingredients (auto-detected or enter manually, comma separated)</label>
         <input id="ingredientsInput" type="text" placeholder="e.g. tomato, egg, scallion" />
@@ -82,22 +83,31 @@
       <p id="status" class="status"></p>
 
       <div class="dish-wrap">
-        <label>Storyboard (scene-by-scene)</label>
+        <div class="copy-row">
+          <label>Storyboard (scene-by-scene)</label>
+          <button id="copyStoryboardBtn" class="ghost-btn" type="button">Copy</button>
+        </div>
         <textarea id="storyboardOutput" rows="8" placeholder="Storyboard will appear here..."></textarea>
       </div>
 
       <div class="dish-wrap">
-        <label>Image prompts (for each scene)</label>
+        <div class="copy-row">
+          <label>Image prompts (for each scene)</label>
+          <button id="copyPromptBtn" class="ghost-btn" type="button">Copy</button>
+        </div>
         <textarea id="imagePromptOutput" rows="8" placeholder="Image prompts will appear here..."></textarea>
       </div>
 
       <div class="dish-wrap">
-        <label>Actionable cooking steps</label>
+        <div class="copy-row">
+          <label>Actionable cooking steps</label>
+          <button id="copyStepsBtn" class="ghost-btn" type="button">Copy</button>
+        </div>
         <textarea id="stepsOutput" rows="8" placeholder="Cooking steps will appear here..."></textarea>
       </div>
     </section>
   </main>
 
-  <script src="./app.js?v=20260607-detectfix1"></script>
+  <script src="./app.js?v=20260608-static2"></script>
 </body>
 </html>

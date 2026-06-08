@@ -6,12 +6,16 @@ const ingredientsInput = document.getElementById('ingredientsInput');
 const dishInput = document.getElementById('dishInput');
 const genBtn = document.getElementById('genBtn');
 const statusEl = document.getElementById('status');
+const detectMeta = document.getElementById('detectMeta');
 
 const styleSelect = document.getElementById('styleSelect');
 const paceSelect = document.getElementById('paceSelect');
 const storyboardOutput = document.getElementById('storyboardOutput');
 const imagePromptOutput = document.getElementById('imagePromptOutput');
 const stepsOutput = document.getElementById('stepsOutput');
+const copyStoryboardBtn = document.getElementById('copyStoryboardBtn');
+const copyPromptBtn = document.getElementById('copyPromptBtn');
+const copyStepsBtn = document.getElementById('copyStepsBtn');
 
 let model = null;
 let detected = [];
@@ -67,6 +71,30 @@ function suggestDish(labels) {
     if (tokens.includes(key)) return dishMap[key];
   }
   return 'Home Style Mixed Ingredient Stir-fry';
+}
+
+function uniqueByLabel(items) {
+  const seen = new Set();
+  const out = [];
+  for (const item of items) {
+    if (!item.label || seen.has(item.label)) continue;
+    seen.add(item.label);
+    out.push(item);
+  }
+  return out;
+}
+
+async function copyText(text, successMessage) {
+  if (!text || !text.trim()) {
+    statusEl.textContent = 'Nothing to copy yet. Generate a plan first.';
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    statusEl.textContent = successMessage;
+  } catch (_) {
+    statusEl.textContent = 'Copy blocked by browser. You can still select and copy manually.';
+  }
 }
 
 async function loadModel() {
@@ -156,6 +184,7 @@ fileInput.addEventListener('change', () => {
   preview.style.display = 'block';
 
   labelsBox.innerHTML = '';
+  if (detectMeta) detectMeta.textContent = '';
   statusEl.textContent = '';
   storyboardOutput.value = '';
   imagePromptOutput.value = '';
@@ -177,17 +206,30 @@ detectBtn.addEventListener('click', async () => {
     await preview.decode().catch(() => {});
 
     const predictions = await withTimeout(model.classify(preview, 6), 25000, 'Detect');
-    detected = predictions
-      .map(p => normalizeLabel(p.className).split(',')[0].trim())
-      .filter(Boolean)
+    const ranked = uniqueByLabel(
+      predictions.map(p => ({
+        label: normalizeLabel(p.className).split(',')[0].trim(),
+        prob: Number(p.probability || 0),
+      }))
+    )
+      .filter(p => p.label)
+      .sort((a, b) => b.prob - a.prob)
       .slice(0, 5);
 
+    detected = ranked.map(x => x.label);
+
     labelsBox.innerHTML = '';
-    detected.forEach(x => {
+    ranked.forEach(x => {
       const chip = document.createElement('span');
-      chip.textContent = x;
+      chip.textContent = `${x.label} ${Math.round(x.prob * 100)}%`;
       labelsBox.appendChild(chip);
     });
+
+    if (detectMeta) {
+      detectMeta.textContent = ranked.length
+        ? `Detected ${ranked.length} items, ranked by confidence.`
+        : 'No clear ingredients detected. Please enter ingredients manually.';
+    }
 
     ingredientsInput.value = detected.join(', ');
     if (!dishInput.value) {
@@ -217,3 +259,13 @@ genBtn.addEventListener('click', () => {
     genBtn.disabled = false;
   }
 });
+
+if (copyStoryboardBtn) {
+  copyStoryboardBtn.addEventListener('click', () => copyText(storyboardOutput.value, 'Storyboard copied.'));
+}
+if (copyPromptBtn) {
+  copyPromptBtn.addEventListener('click', () => copyText(imagePromptOutput.value, 'Image prompts copied.'));
+}
+if (copyStepsBtn) {
+  copyStepsBtn.addEventListener('click', () => copyText(stepsOutput.value, 'Cooking steps copied.'));
+}

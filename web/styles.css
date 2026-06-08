@@ -105,6 +105,21 @@ textarea {
   margin-top: 12px;
 }
 .dish-wrap label { display: block; margin-bottom: 6px; color: var(--muted); }
+.meta { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+.copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.ghost-btn {
+  background: #fff;
+  border: 1px solid var(--border);
+  color: #6f4c3f;
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+}
 .status { color: #8a5d4e; margin: 10px 0; min-height: 20px; }
 video {
   display: none;
