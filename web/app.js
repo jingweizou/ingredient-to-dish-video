@@ -18,6 +18,7 @@ const copyPromptBtn = document.getElementById('copyPromptBtn');
 const copyStepsBtn = document.getElementById('copyStepsBtn');
 
 let model = null;
+let detectorMode = 'mobilenet';
 let detected = [];
 let isDetecting = false;
 
@@ -36,6 +37,10 @@ const dishMap = {
   pepper: 'Bell Pepper Beef',
   onion: 'Onion Egg Stir-fry',
 };
+
+const foodKeywords = [
+  'tomato','potato','onion','garlic','ginger','cabbage','carrot','broccoli','cauliflower','spinach','lettuce','cucumber','zucchini','eggplant','pepper','chili','mushroom','corn','bean','pea','rice','noodle','pasta','egg','chicken','beef','pork','fish','shrimp','salmon','tuna','meat'
+];
 
 const ingredientAlias = {
   zucchini: 'zucchini',
@@ -113,6 +118,10 @@ function mapLabelToIngredient(rawClassName) {
     if (compact.includes(key)) return ingredientAlias[key];
   }
 
+  for (const k of foodKeywords) {
+    if (primary.includes(k)) return k;
+  }
+
   return primary;
 }
 
@@ -164,7 +173,7 @@ async function loadModel() {
   if (window.__mlError) {
     throw new Error('AI detector libraries blocked by network');
   }
-  if (!window.mobilenet || !window.tf) {
+  if (!window.tf) {
     throw new Error('AI detector libraries blocked by network');
   }
 
@@ -175,11 +184,27 @@ async function loadModel() {
     ]);
   } catch (_) {}
 
-  model = await Promise.race([
-    mobilenet.load({ version: 2, alpha: 1.0 }),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Model load timeout')), 12000)),
-  ]);
-  return model;
+  if (window.mobilenet) {
+    try {
+      model = await Promise.race([
+        mobilenet.load({ version: 2, alpha: 1.0 }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Model load timeout')), 12000)),
+      ]);
+      detectorMode = 'mobilenet';
+      return model;
+    } catch (_) {}
+  }
+
+  if (window.cocoSsd) {
+    model = await Promise.race([
+      cocoSsd.load(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Coco model load timeout')), 12000)),
+    ]);
+    detectorMode = 'coco';
+    return model;
+  }
+
+  throw new Error('No detector model available');
 }
 
 function ensureImageReady(img) {
@@ -299,14 +324,27 @@ async function runDetection(source = 'manual') {
     await withTimeout(preview.decode().catch(() => {}), 5000, 'Decode');
 
     const classifyInput = buildClassifyInput(preview);
-    const predictions = await withTimeout(model.classify(classifyInput, 10), 16000, 'Detect');
+    let ranked = [];
 
-    const ranked = uniqueByLabel(
-      predictions.map(p => ({
-        label: mapLabelToIngredient(p.className),
-        prob: Number(p.probability || 0),
-      }))
-    )
+    if (detectorMode === 'mobilenet') {
+      const predictions = await withTimeout(model.classify(classifyInput, 10), 16000, 'Detect');
+      ranked = uniqueByLabel(
+        predictions.map(p => ({
+          label: mapLabelToIngredient(p.className),
+          prob: Number(p.probability || 0),
+        }))
+      );
+    } else {
+      const predictions = await withTimeout(model.detect(classifyInput, 12, 0.15), 12000, 'Detect');
+      ranked = uniqueByLabel(
+        predictions.map(p => ({
+          label: mapLabelToIngredient(p.class),
+          prob: Number(p.score || 0),
+        }))
+      );
+    }
+
+    ranked = ranked
       .filter(p => p.label)
       .sort((a, b) => b.prob - a.prob)
       .slice(0, 8);
@@ -322,7 +360,7 @@ async function runDetection(source = 'manual') {
 
     if (detectMeta) {
       detectMeta.textContent = ranked.length
-        ? `Detected ${ranked.length} items automatically (ranked by confidence).`
+        ? `Detected ${ranked.length} items automatically (ranked by confidence, engine: ${detectorMode}).`
         : 'Could not confidently identify ingredients. You can tap Detect again or type manually.';
     }
 

@@ -45,6 +45,10 @@
           'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js',
           'https://unpkg.com/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js'
         ]);
+        await loadScriptWithFallback([
+          'https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js',
+          'https://unpkg.com/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js'
+        ]);
         return true;
       } catch (e) {
         window.__mlError = e;
@@ -125,6 +129,6 @@
     </section>
   </main>
 
-  <script src="./app.js?v=20260608-autodetect2"></script>
+  <script src="./app.js?v=20260608-autodetect3"></script>
 </body>
 </html>
