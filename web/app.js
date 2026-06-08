@@ -103,10 +103,16 @@ async function loadModel() {
 
   if (window.__mlReady && typeof window.__mlReady.then === 'function') {
     try {
-      await window.__mlReady;
+      await Promise.race([
+        window.__mlReady,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Detector library load timeout')), 10000)),
+      ]);
     } catch (_) {}
   }
 
+  if (window.__mlError) {
+    throw new Error('AI detector libraries blocked by network');
+  }
   if (!window.mobilenet || !window.tf) {
     throw new Error('AI detector libraries blocked by network');
   }

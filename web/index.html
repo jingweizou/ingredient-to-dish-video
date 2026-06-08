@@ -6,33 +6,50 @@
   <title>Ingredient → Dish Video</title>
   <link rel="stylesheet" href="./styles.css" />
   <script>
-    async function loadScriptWithFallback(urls) {
+    async function loadScriptWithFallback(urls, timeoutMs = 8000) {
       for (const url of urls) {
         try {
           await new Promise((resolve, reject) => {
             const s = document.createElement('script');
+            const timer = setTimeout(() => {
+              s.remove();
+              reject(new Error(`timeout: ${url}`));
+            }, timeoutMs);
+
             s.src = url;
             s.async = true;
-            s.onload = resolve;
-            s.onerror = () => reject(new Error(`failed: ${url}`));
+            s.onload = () => {
+              clearTimeout(timer);
+              resolve();
+            };
+            s.onerror = () => {
+              clearTimeout(timer);
+              reject(new Error(`failed: ${url}`));
+            };
             document.head.appendChild(s);
           });
           return url;
         } catch (_) {}
       }
-      throw new Error('all script sources failed');
+      throw new Error('all script sources failed or timed out');
     }
 
+    window.__mlError = null;
     window.__mlReady = (async () => {
-      await loadScriptWithFallback([
-        'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js',
-        'https://unpkg.com/@tensorflow/tfjs@4.20.0/dist/tf.min.js'
-      ]);
-      await loadScriptWithFallback([
-        'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js',
-        'https://unpkg.com/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js'
-      ]);
-      return true;
+      try {
+        await loadScriptWithFallback([
+          'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js',
+          'https://unpkg.com/@tensorflow/tfjs@4.20.0/dist/tf.min.js'
+        ]);
+        await loadScriptWithFallback([
+          'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js',
+          'https://unpkg.com/@tensorflow-models/mobilenet@2.1.1/dist/mobilenet.min.js'
+        ]);
+        return true;
+      } catch (e) {
+        window.__mlError = e;
+        throw e;
+      }
     })();
   </script>
 </head>
@@ -108,6 +125,6 @@
     </section>
   </main>
 
-  <script src="./app.js?v=20260608-static2"></script>
+  <script src="./app.js?v=20260608-detectfix2"></script>
 </body>
 </html>
