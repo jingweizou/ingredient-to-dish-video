@@ -169,10 +169,16 @@ async function loadModel() {
   }
 
   try {
-    await tf.ready();
+    await Promise.race([
+      tf.ready(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('TF backend init timeout')), 8000)),
+    ]);
   } catch (_) {}
 
-  model = await mobilenet.load({ version: 2, alpha: 1.0 });
+  model = await Promise.race([
+    mobilenet.load({ version: 2, alpha: 1.0 }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Model load timeout')), 12000)),
+  ]);
   return model;
 }
 
@@ -335,7 +341,7 @@ async function runDetection(source = 'manual') {
     const msg = String(e?.message || e);
     if (/blocked by network/i.test(msg) || /library failed/i.test(msg) || /mobilenet/i.test(msg) || /tf/i.test(msg)) {
       statusEl.textContent = 'Detector library was blocked by your network. Please switch network and retry auto-detect.';
-    } else if (/timeout/i.test(msg)) {
+    } else if (/model load timeout/i.test(msg) || /backend init timeout/i.test(msg) || /timeout/i.test(msg)) {
       statusEl.textContent = source === 'auto'
         ? 'Auto-detect timed out. Tap Detect again once, or retake a clearer photo.'
         : 'Detection timed out. Retry once, or retake a clearer photo.';
